@@ -4,12 +4,25 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"os"
 )
 
-func TestSuffix(t *testing.T) {
-	if suffix != ".wn.oro.co.jp" {
-		t.Error("suffix is not .wn.oro.co.jp")
-	}
+func TestMain(m *testing.M) {
+	beforeAll()
+	defer afterAll()
+	
+	os.Exit(m.Run())
+}
+
+func beforeAll() {
+	target = "path.txt"
+	suffix = ".wn.oro.co.jp"
+	fontExt = `\.(otf|ttf|ttc|fon)$`
+	Buffer = [][]string{}
+}
+
+func afterAll() {
+	
 }
 
 func TestGetHostname(t *testing.T) {
@@ -86,4 +99,35 @@ func TestFindDirs(t *testing.T) {
 	if test2 != nil {
 		t.Error(test2.Error())
 	}
+}
+
+func TestWalkPaths(t *testing.T) {
+	Buffer = [][]string{}
+	test1 := WalkPaths([]string{
+		"./sample",
+	})
+	if test1 != nil {
+		t.Error(test1.Error())
+	}
+	
+	Buffer = [][]string{}
+	p := []string{}
+	test2 := WalkPaths(p)
+	if test2 != nil {
+		t.Error(test2.Error())
+	}
+	if len(Buffer) > 0 {
+		t.Error("WalkPaths error when empty list")
+	}
+}
+
+func TestGetSaveDirectory(t *testing.T) {
+	old := os.Args
+	os.Args[0] = "./sample/piyo"
+	test1 := GetSaveDirectory()
+	if test1 != "sample" {
+		t.Error("GetSaveDirectory error")
+	}
+	
+	os.Args = old
 }

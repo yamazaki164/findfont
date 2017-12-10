@@ -11,13 +11,10 @@ import (
 	"strings"
 )
 
-const (
+var (
 	target  string = "path.txt"
 	suffix  string = ".wn.oro.co.jp"
 	fontExt string = `\.(otf|ttf|ttc|fon)$`
-)
-
-var (
 	Pattern  *regexp.Regexp = regexp.MustCompile(fontExt)
 	Hostname string         = GetHostname()
 	Buffer   [][]string     = [][]string{}
@@ -99,13 +96,7 @@ func WriteToCSV(output string) error {
 	return writer.WriteAll(Buffer)
 }
 
-func main() {
-	paths, err := GetPaths(target)
-	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
-
+func WalkPaths(paths []string) error {
 	for _, path := range paths {
 		root, err := filepath.Abs(path)
 		if err != nil {
@@ -117,12 +108,30 @@ func main() {
 
 		err = FindDirs(root)
 		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(1)
+			return err
 		}
 	}
+	
+	return nil
+}
 
-	output := CsvFilename(filepath.Dir(os.Args[0]))
+func GetSaveDirectory() string {
+	return filepath.Dir(os.Args[0])
+}
+
+func main() {
+	paths, err := GetPaths(target)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+
+	if err := WalkPaths(paths); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+
+	output := CsvFilename(GetSaveDirectory())
 	if err := WriteToCSV(output); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
