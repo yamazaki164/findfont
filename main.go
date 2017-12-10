@@ -1,7 +1,9 @@
 package main
 
 import (
-	"flag"
+	"bufio"
+	"encoding/csv"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,48 +11,120 @@ import (
 	"strings"
 )
 
-func main() {
-	var path *string = flag.String("p", "", "/path/to/dir")
-	var hostname *string = flag.String("h", "", "hostname")
-	
-	flag.Parse()
+const (
+	target  string = "path.txt"
+	suffix  string = ".wn.oro.co.jp"
+	fontExt string = `\.(otf|ttf|ttc|fon)$`
+)
 
-	pattern := regexp.MustCompile(`\.(otf|ttf|ttc|fon)$`)
+var (
+	Pattern  *regexp.Regexp = regexp.MustCompile(fontExt)
+	Hostname string         = GetHostname()
+	Buffer   [][]string     = [][]string{}
+)
 
-	if *path == "" {
-		fmt.Println("invalid -p parameter")
-		os.Exit(1)
+func ScanPath(fp *os.File) []string {
+	paths := []string{}
+	scanner := bufio.NewScanner(fp)
+	for scanner.Scan() {
+		s := scanner.Text()
+		if len(s) > 0 {
+			paths = append(paths, s)
+		}
 	}
-	if *hostname == "" {
-		fmt.Println("invaild -h parameter")
-		os.Exit(1)
-	}
-	
-	var err error
-	var root string = ""
-	
-	root, err = filepath.Abs(*path)
+
+	return paths
+}
+
+func GetPaths(filename string) ([]string, error) {
+	fp, err := os.OpenFile(filename, os.O_RDONLY, 0755)
 	if err != nil {
-		os.Exit(1)
+		return nil, err
 	}
-	
-	if _, e := os.Stat(root); e != nil {
-		fmt.Println("path not found")
-		os.Exit(1)
+	defer fp.Close()
+
+	paths := ScanPath(fp)
+	if len(paths) > 0 {
+		return paths, nil
+	} else {
+		return nil, errors.New("none directory list")
 	}
-	
-	err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if info.IsDir() {
-			return nil
-		}
-		
-		if pattern.MatchString(strings.ToLower(path)) {
-			fmt.Printf("%s,%s,%s\r\n", *hostname, filepath.Dir(path), filepath.Base(path))
-		}
+}
+
+func GetHostname() string {
+	host, err := os.Hostname()
+	if err != nil {
+		return "unknown host"
+	}
+
+	return strings.Replace(host, suffix, "", 1)
+}
+
+func WalkFunc(path string, info os.FileInfo, err error) error {
+	if err != nil {
 		return nil
-	})
-	
+	}
+
+	if info.IsDir() {
+		return nil
+	}
+
+	if Pattern.MatchString(strings.ToLower(path)) {
+		item := []string{
+			Hostname,
+			filepath.Dir(path),
+			filepath.Base(path),
+		}
+		Buffer = append(Buffer, item)
+	}
+	return nil
+}
+
+func FindDirs(root string) error {
+	return filepath.Walk(root, WalkFunc)
+}
+
+func CsvFilename(dir string) string {
+	return filepath.Join(dir, Hostname+".csv")
+}
+
+func WriteToCSV(output string) error {
+	fp, err := os.OpenFile(output, os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
-		fmt.Println(1, err)
+		return err
+	}
+	defer fp.Close()
+	writer := csv.NewWriter(fp)
+
+	return writer.WriteAll(Buffer)
+}
+
+func main() {
+	paths, err := GetPaths(target)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+
+	for _, path := range paths {
+		root, err := filepath.Abs(path)
+		if err != nil {
+			continue
+		}
+		if _, err = os.Stat(root); err != nil {
+			continue
+		}
+
+		err = FindDirs(root)
+		if err != nil {
+			fmt.Println(err.Error())
+			os.Exit(1)
+		}
+	}
+
+	output := CsvFilename(filepath.Dir(os.Args[0]))
+	if err := WriteToCSV(output); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
 	}
 }
