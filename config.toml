@@ -1,0 +1,10 @@
+targets = [
+	'c:\windows',
+]
+
+extensions = [
+	'otf',
+	'ttf',
+	'ttc',
+	'fon',
+]

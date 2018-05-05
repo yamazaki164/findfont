@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bufio"
 	"encoding/csv"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,49 +10,18 @@ import (
 )
 
 var (
-	target  string = "path.txt"
-	suffix  string = ".wn.oro.co.jp"
-	fontExt string = `\.(otf|ttf|ttc|fon)$`
-	Pattern  *regexp.Regexp = regexp.MustCompile(fontExt)
-	Hostname string         = GetHostname()
-	Buffer   [][]string     = [][]string{}
+	Pattern  *regexp.Regexp
+	Hostname string     = GetHostname()
+	Buffer   [][]string = [][]string{}
 )
-
-func ScanPath(fp *os.File) []string {
-	paths := []string{}
-	scanner := bufio.NewScanner(fp)
-	for scanner.Scan() {
-		s := scanner.Text()
-		if len(s) > 0 {
-			paths = append(paths, s)
-		}
-	}
-
-	return paths
-}
-
-func GetPaths(filename string) ([]string, error) {
-	fp, err := os.OpenFile(filename, os.O_RDONLY, 0755)
-	if err != nil {
-		return nil, err
-	}
-	defer fp.Close()
-
-	paths := ScanPath(fp)
-	if len(paths) > 0 {
-		return paths, nil
-	} else {
-		return nil, errors.New("none directory list")
-	}
-}
 
 func GetHostname() string {
 	host, err := os.Hostname()
 	if err != nil {
-		return "unknown host"
+		return "UnknownHost"
 	}
 
-	return strings.Replace(host, suffix, "", 1)
+	return strings.Split(host, ".")[0]
 }
 
 func WalkFunc(path string, info os.FileInfo, err error) error {
@@ -91,7 +58,9 @@ func WriteToCSV(output string) error {
 		return err
 	}
 	defer fp.Close()
+
 	writer := csv.NewWriter(fp)
+	writer.UseCRLF = true
 
 	return writer.WriteAll(Buffer)
 }
@@ -111,7 +80,7 @@ func WalkPaths(paths []string) error {
 			return err
 		}
 	}
-	
+
 	return nil
 }
 
@@ -120,13 +89,14 @@ func GetSaveDirectory() string {
 }
 
 func main() {
-	paths, err := GetPaths(target)
+	config, err := LoadConfig()
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
+	Pattern = config.Extensions2Regexp()
 
-	if err := WalkPaths(paths); err != nil {
+	if err := WalkPaths(config.Targets); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}

@@ -1,34 +1,33 @@
 package main
 
 import (
+	"os"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
-	"os"
 )
 
 func TestMain(m *testing.M) {
 	beforeAll()
 	defer afterAll()
-	
+
 	os.Exit(m.Run())
 }
 
 func beforeAll() {
-	target = "path.txt"
-	suffix = ".wn.oro.co.jp"
-	fontExt = `\.(otf|ttf|ttc|fon)$`
+	Pattern = regexp.MustCompile(`\.(otf)$`)
 	Buffer = [][]string{}
 }
 
 func afterAll() {
-	
+
 }
 
 func TestGetHostname(t *testing.T) {
 	result := GetHostname()
-	if strings.Contains(result, suffix) {
-		t.Error("suffix trimming error")
+	if strings.Contains(result, ".") {
+		t.Error("hostname parse error")
 	}
 }
 
@@ -61,40 +60,12 @@ func TestWriteToCSV(t *testing.T) {
 	}
 }
 
-func TestGetPaths(t *testing.T) {
-	test1, err1 := GetPaths("./sample/notfoundfile.txt")
-	if err1 == nil {
-		t.Error("GetPaths file open error")
-	}
-	if test1 != nil {
-		t.Error("GetPaths file open error")
-	}
-
-	test2, err2 := GetPaths("./sample/path.txt")
-	if err2 != nil {
-		t.Error(err2.Error())
-	}
-	if len(test2) == 0 || len(test2) > 2 {
-		t.Error("GetPaths line error")
-	}
-
-	test3, err3 := GetPaths("./sample/empty.txt")
-	if err3 == nil {
-		t.Error("GetPaths empty file error")
-	} else if err3.Error() != "none directory list" {
-		t.Error("GetPaths empty file error message")
-	}
-	if test3 != nil {
-		t.Error("GetPaths empty file error")
-	}
-}
-
 func TestFindDirs(t *testing.T) {
 	test1 := FindDirs("./sample")
 	if test1 != nil {
 		t.Error(test1.Error())
 	}
-	
+
 	test2 := FindDirs("./sample/dummy")
 	if test2 != nil {
 		t.Error(test2.Error())
@@ -109,7 +80,7 @@ func TestWalkPaths(t *testing.T) {
 	if test1 != nil {
 		t.Error(test1.Error())
 	}
-	
+
 	Buffer = [][]string{}
 	p := []string{}
 	test2 := WalkPaths(p)
@@ -128,6 +99,6 @@ func TestGetSaveDirectory(t *testing.T) {
 	if test1 != "sample" {
 		t.Error("GetSaveDirectory error")
 	}
-	
+
 	os.Args = old
 }
